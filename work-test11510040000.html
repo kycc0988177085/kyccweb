@@ -1,0 +1,2080 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>打卡管理系統 Pro - Attendance Management System</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Font Family -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Chart.js for Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <style>
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+        }
+        .dark .glass-panel {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(12px);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.4);
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-full transition-colors duration-200">
+
+    <div id="app" class="min-h-screen flex flex-col">
+        
+        <!-- Header Nav -->
+        <header class="sticky top-0 z-30 bg-white/90 dark:bg-slate-800/90 backdrop-blur border-b border-slate-200 dark:border-slate-700 px-4 sm:px-6 py-3 transition-colors">
+            <div class="max-w-7xl mx-auto flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-blue-600 text-white p-2 rounded-xl shadow-md shadow-blue-500/20">
+                        <i data-lucide="clock" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-extrabold text-lg sm:text-xl tracking-tight leading-none bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent dark:from-blue-400 dark:to-indigo-400">
+                            打卡管理系統 Pro
+                        </h1>
+                        <span class="text-xs text-slate-500 dark:text-slate-400 font-medium hidden sm:inline">企業級差勤與差假管理平台</span>
+                    </div>
+                </div>
+
+                <!-- User Bar & Utilities -->
+                <div class="flex items-center space-x-3">
+                    <!-- Theme Switcher -->
+                    <button id="themeToggleBtn" onclick="toggleTheme()" class="p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition">
+                        <i data-lucide="moon" class="w-5 h-5 dark:hidden"></i>
+                        <i data-lucide="sun" class="w-5 h-5 hidden dark:block"></i>
+                    </button>
+
+                    <!-- Role Switcher / User Info -->
+                    <div id="userInfoContainer" class="hidden flex items-center space-x-3 border-l border-slate-200 dark:border-slate-700 pl-3">
+                        <div class="text-right hidden sm:block">
+                            <div id="userDisplayName" class="text-sm font-bold text-slate-800 dark:text-slate-100 leading-snug">--</div>
+                            <div id="userDisplayRole" class="text-xs text-slate-500 dark:text-slate-400">--</div>
+                        </div>
+                        <button onclick="logout()" class="p-2 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition flex items-center gap-1 text-sm font-semibold" title="登出">
+                            <i data-lucide="log-out" class="w-5 h-5"></i>
+                            <span class="hidden md:inline">登出</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <nav id="navBar" class="hidden bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 sm:px-6 sticky top-[61px] z-20 shadow-sm">
+            <div class="max-w-7xl mx-auto flex space-x-1 sm:space-x-4 overflow-x-auto custom-scrollbar py-2" id="navTabsContainer">
+                <!-- Nav items dynamically rendered here -->
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+            <div id="mainContent">
+                <!-- Dynamic Content injected here -->
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="border-t border-slate-200 dark:border-slate-800 py-4 px-6 text-center text-xs text-slate-500 dark:text-slate-400">
+            © 2026 企業打卡管理系統 Pro · 版權所有 · MVP 系統範例
+        </footer>
+    </div>
+
+    <input id="excelScheduleFileInput" type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="importExcelSchedule(this)">
+
+    <div id="modalBackdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity duration-200 flex items-center justify-center p-4">
+        <div id="modalContainer" class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-lg transform scale-95 transition-transform duration-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                <h3 id="modalTitle" class="text-lg font-bold text-slate-900 dark:text-white">視窗標題</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="modalBody" class="p-6 max-h-[75vh] overflow-y-auto custom-scrollbar">
+                <!-- Modal Dynamic Content -->
+            </div>
+            <div id="modalFooter" class="px-6 py-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3">
+                <!-- Dynamic Buttons -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        // State Management
+        const DEFAULT_EMPLOYEES = [
+            { id: 1, code: "E001", username: "wang", password: "123", name: "王小明", dept: "業務部", job: "業務資深專員", workStart: "09:00", workEnd: "18:00", overtimeHours: 2, dailyWorkHoursLimit: 8, in: "08:56", out: "18:02", status: "正常", active: true, lat: 25.0339, lng: 121.5645 },
+            { id: 2, code: "E002", username: "chen", password: "123", name: "陳小華", dept: "工程部", job: "全棧工程師", workStart: "09:00", workEnd: "18:00", overtimeHours: 2, dailyWorkHoursLimit: 8, in: "09:18", out: "", status: "遲到", active: true, lat: 25.0345, lng: 121.5650 },
+            { id: 3, code: "E003", username: "lin", password: "123", name: "林小美", dept: "行政部", job: "行政資深經理", workStart: "08:30", workEnd: "17:30", overtimeHours: 3, dailyWorkHoursLimit: 8, in: "08:51", out: "19:30", status: "加班", active: true, lat: 25.0338, lng: 121.5642 },
+            { id: 4, code: "E004", username: "chang", password: "123", name: "張志豪", dept: "工程部", job: "UI/UX 設計師", workStart: "09:00", workEnd: "18:00", overtimeHours: 2, dailyWorkHoursLimit: 8, in: "", out: "", status: "未打卡", active: true, lat: null, lng: null },
+            { id: 5, code: "E005", username: "huang", password: "123", name: "黃大衛", dept: "產品部", job: "產品總監", workStart: "09:00", workEnd: "18:00", overtimeHours: 2, dailyWorkHoursLimit: 8, in: "09:00", out: "18:15", status: "正常", active: true, lat: 25.0336, lng: 121.5640 }
+        ];
+
+        const MANAGER_ACCOUNT = { username: "admin", password: "123", name: "系統主管 (Admin)", role: "manager" };
+
+        // 主管帳號密碼：首次使用預設 123，之後由主管自行修改並儲存在本機瀏覽器
+        try {
+            const savedManagerAccount = JSON.parse(localStorage.getItem("sys_manager_account"));
+            if (savedManagerAccount && typeof savedManagerAccount.password === "string" && savedManagerAccount.password.length > 0) {
+                MANAGER_ACCOUNT.password = savedManagerAccount.password;
+            }
+        } catch (e) {}
+
+        function getManagerPassword() {
+            return MANAGER_ACCOUNT.password;
+        }
+
+        function saveManagerAccount() {
+            localStorage.setItem("sys_manager_account", JSON.stringify({
+                username: MANAGER_ACCOUNT.username,
+                password: MANAGER_ACCOUNT.password,
+                name: MANAGER_ACCOUNT.name,
+                role: MANAGER_ACCOUNT.role
+            }));
+        }
+
+        // Default Office Coordinates (e.g. Taipei 101 area)
+        const OFFICE_GEO = { lat: 25.033976, lng: 121.564538, allowedRadiusMeters: 500 };
+
+        // 依職稱自動設定每日上班時數上限：隨扈 11 小時、安駕 10 小時、安管 12 小時，其餘 8 小時。
+        function getDailyWorkHoursLimitByJob(job) {
+            const title = String(job || '').trim();
+            if (title.includes('隨扈')) return 11;
+            if (title.includes('安駕')) return 10;
+            if (title.includes('安管')) return 12;
+            return 8;
+        }
+
+        function applyDailyWorkHoursLimitByJob(emp) {
+            if (!emp) return 8;
+            const limit = getDailyWorkHoursLimitByJob(emp.job);
+            emp.dailyWorkHoursLimit = limit;
+            return limit;
+        }
+
+        // 相容舊版資料：若既有員工尚未設定班表，使用 09:00-18:00
+        function ensureMonthlySchedule(emp) {
+            if (!emp.monthlySchedule || typeof emp.monthlySchedule !== 'object') emp.monthlySchedule = {};
+            return emp.monthlySchedule;
+        }
+
+        function getScheduleKey(date = new Date()) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function getDailyWorkHoursLimit(emp) {
+            return getDailyWorkHoursLimitByJob(emp?.job);
+        }
+
+        function getEmployeeSchedule(emp, date = new Date()) {
+            ensureMonthlySchedule(emp);
+            const item = emp.monthlySchedule[getScheduleKey(date)];
+            return {
+                workStart: item?.workStart || emp.workStart || '09:00',
+                workEnd: item?.workEnd || emp.workEnd || '18:00',
+                overtimeHours: Number.isFinite(Number(item?.overtimeHours))
+                    ? Number(item.overtimeHours)
+                    : (Number.isFinite(Number(emp.overtimeHours)) ? Number(emp.overtimeHours) : 2)
+            };
+        }
+
+        // 班表代碼對應規則：Excel 匯入時會自動套用上下班時間。
+        // X / 特 / 補 / 原 / 折 / 事 / 烏 / 台中 / 夫人 / S / 值班文字等無明確固定時段者，保留代碼並沿用員工預設時間；
+        // X、各類假別則視為非固定工時，時間欄位使用 00:00-00:00，避免誤算正常出勤工時。
+        const SHIFT_CODE_MAP = {
+            'A':   { start: '09:00', end: '17:00', label: '09:00-17:00' },
+            'B':   { start: '17:00', end: '01:00', label: '17:00-01:00' },
+            'C':   { start: '07:00', end: '15:00', label: '07:00-15:00' },
+            'D':   { start: '15:00', end: '23:00', label: '15:00-23:00' },
+            'E':   { start: '12:00', end: '23:00', label: '12:00-23:00' },
+            'F':   { start: '11:00', end: '19:00', label: '11:00-19:00' },
+            'X':   { start: '00:00', end: '00:00', label: '休假', leave: true },
+            '▲':   { start: '09:00', end: '19:00', label: '09:00-19:00' },
+            '早1':  { start: '06:30', end: '18:30', label: '06:30-18:30' },
+            '早2':  { start: '07:00', end: '19:00', label: '07:00-19:00' },
+            '早3':  { start: '10:00', end: '22:00', label: '10:00-22:00' },
+            '晚':   { start: '18:30', end: '06:30', label: '18:30-06:30' },
+            '支':   { start: '11:00', end: '19:00', label: '11:00-19:00' },
+            '值':   { start: '11:00', end: '19:00', label: '11:00-19:00（值班隨扈）' },
+            'AB':   { start: '09:00', end: '01:00', label: '09:00-01:00' },
+            'S':   { start: null, end: null, label: '機動備勤' },
+            '特':   { start: '00:00', end: '00:00', label: '特休', leave: true },
+            '補':   { start: '00:00', end: '00:00', label: '補休', leave: true },
+            '原':   { start: '00:00', end: '00:00', label: '原民假', leave: true },
+            '折':   { start: '00:00', end: '00:00', label: '折抵時數' },
+            '事':   { start: '00:00', end: '00:00', label: '事假', leave: true },
+            '烏':   { start: null, end: null, label: '至農場' },
+            '台中': { start: null, end: null, label: '待命至台中' },
+            '夫人': { start: null, end: null, label: '未至台中載夫人' }
+        };
+
+        function getShiftCodeDefinition(code) {
+            const key = String(code ?? '').trim();
+            return SHIFT_CODE_MAP[key] || null;
+        }
+
+        function applyShiftCodeToSchedule(emp, dateKey, shiftCode, old = {}) {
+            const code = String(shiftCode ?? '').trim();
+            const rule = getShiftCodeDefinition(code);
+            const fallbackStart = old.workStart || emp.workStart || '09:00';
+            const fallbackEnd = old.workEnd || emp.workEnd || '18:00';
+            return {
+                workStart: rule?.start ?? fallbackStart,
+                workEnd: rule?.end ?? fallbackEnd,
+                overtimeHours: Number.isFinite(Number(old.overtimeHours)) ? Number(old.overtimeHours) : Number(emp.overtimeHours ?? 2),
+                shiftCode: code
+            };
+        }
+
+        const storedEmployees = JSON.parse(localStorage.getItem('sys_employees')) || DEFAULT_EMPLOYEES;
+        storedEmployees.forEach(e => {
+            e.workStart = e.workStart || '09:00';
+            e.workEnd = e.workEnd || '18:00';
+            e.overtimeHours = Number.isFinite(Number(e.overtimeHours)) ? Number(e.overtimeHours) : 2;
+            e.dailyWorkHoursLimit = getDailyWorkHoursLimitByJob(e.job);
+            e.dailyWorkHoursLimit = Number.isFinite(Number(e.dailyWorkHoursLimit)) ? Number(e.dailyWorkHoursLimit) : 8;
+            ensureMonthlySchedule(e);
+        });
+
+        let state = {
+            employees: storedEmployees,
+            currentUser: JSON.parse(localStorage.getItem('sys_user')) || null,
+            isManager: localStorage.getItem('sys_isManager') === 'true',
+            currentPage: localStorage.getItem('sys_page') || 'home',
+            attendanceRecords: JSON.parse(localStorage.getItem('sys_attendance')) || generateMockAttendanceHistory(),
+            requests: JSON.parse(localStorage.getItem('sys_requests')) || generateMockRequests(),
+            gpsLocation: null,
+            gpsError: null
+        };
+
+        function saveState() {
+            localStorage.setItem('sys_employees', JSON.stringify(state.employees));
+            localStorage.setItem('sys_user', JSON.stringify(state.currentUser));
+            localStorage.setItem('sys_isManager', state.isManager);
+            localStorage.setItem('sys_page', state.currentPage);
+            localStorage.setItem('sys_attendance', JSON.stringify(state.attendanceRecords));
+            localStorage.setItem('sys_requests', JSON.stringify(state.requests));
+        }
+
+        // Generate Mock History Records for demonstration
+        function generateMockAttendanceHistory() {
+            const list = [];
+            const dates = ["2026-10-01", "2026-09-30", "2026-09-29", "2026-09-28", "2026-09-25", "2026-09-24", "2026-09-23"];
+            const statuses = ["正常", "正常", "遲到", "加班", "正常", "正常", "請假"];
+            
+            DEFAULT_EMPLOYEES.forEach(emp => {
+                dates.forEach((d, idx) => {
+                    list.push({
+                        id: Math.random().toString(36).substring(2, 9),
+                        employeeId: emp.id,
+                        employeeName: emp.name,
+                        dept: emp.dept,
+                        date: d,
+                        inTime: statuses[idx] === '請假' ? '--' : (idx === 2 ? '09:22' : '08:52'),
+                        outTime: statuses[idx] === '請假' ? '--' : (statuses[idx] === '加班' ? '20:15' : '18:05'),
+                        status: statuses[idx],
+                        location: '台北總部辦公室 (GPS: 25.034, 121.564)'
+                    });
+                });
+            });
+            return list;
+        }
+
+        function generateMockRequests() {
+            return [
+                { id: "R001", empId: 2, name: "陳小華", type: "補打卡", date: "2026-09-29", time: "18:00", reason: "系統異常未成功送出", status: "待審核", timestamp: "2026-09-30 09:10" },
+                { id: "R002", empId: 3, name: "林小美", type: "事假", date: "2026-10-05", duration: "1 天", reason: "處理家庭私人事務", status: "待審核", timestamp: "2026-10-01 14:20" },
+                { id: "R003", empId: 1, name: "王小明", type: "特休", date: "2026-10-10", duration: "1 天", reason: "個人休假規劃", status: "已核准", timestamp: "2026-09-25 10:00" }
+            ];
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            renderHeader();
+            renderApp();
+            startClock();
+            simulateGPS();
+        });
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            localStorage.setItem('sys_theme', isDark ? 'dark' : 'light');
+        }
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem('sys_theme');
+            if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        }
+
+        function setPage(page) {
+            state.currentPage = page;
+            saveState();
+            renderHeader();
+            renderApp();
+        }
+
+        function logout() {
+            state.currentUser = null;
+            state.isManager = false;
+            state.currentPage = 'login';
+            saveState();
+            renderHeader();
+            renderApp();
+            toast("已成功登出系統", "info");
+        }
+
+        function toast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toastEl = document.createElement('div');
+            
+            const colorClasses = {
+                success: 'bg-emerald-600 text-white',
+                error: 'bg-rose-600 text-white',
+                info: 'bg-blue-600 text-white',
+                warning: 'bg-amber-500 text-white'
+            };
+
+            const icons = {
+                success: 'check-circle',
+                error: 'alert-circle',
+                info: 'info',
+                warning: 'alert-triangle'
+            };
+
+            toastEl.className = `${colorClasses[type] || colorClasses.info} px-4 py-3 rounded-xl shadow-lg font-medium text-sm flex items-center space-x-2 transition-all duration-300 transform translate-y-4 opacity-0 pointer-events-auto max-w-md`;
+            toastEl.innerHTML = `
+                <i data-lucide="${icons[type] || 'info'}" class="w-5 h-5 flex-shrink-0"></i>
+                <span>${message}</span>
+            `;
+
+            container.appendChild(toastEl);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toastEl.classList.remove('translate-y-4', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toastEl.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toastEl.remove(), 300);
+            }, 3500);
+        }
+
+        function renderHeader() {
+            const userInfoContainer = document.getElementById('userInfoContainer');
+            const navBar = document.getElementById('navBar');
+            const navTabsContainer = document.getElementById('navTabsContainer');
+
+            if (!state.currentUser) {
+                userInfoContainer.classList.add('hidden');
+                navBar.classList.add('hidden');
+                return;
+            }
+
+            userInfoContainer.classList.remove('hidden');
+            navBar.classList.remove('hidden');
+
+            document.getElementById('userDisplayName').textContent = state.currentUser.name;
+            document.getElementById('userDisplayRole').textContent = state.isManager ? '主管 / 管理員' : `${state.currentUser.dept} · ${state.currentUser.job}`;
+
+            const managerTabs = [
+                { id: 'dashboard', label: '今日出勤總覽', icon: 'layout-dashboard' },
+                { id: 'employees', label: '員工管理', icon: 'users' },
+                { id: 'records', label: '出勤數據報表', icon: 'file-text' },
+                { id: 'requests', label: '審核簽核區', icon: 'check-square' }
+            ];
+
+            const employeeTabs = [
+                { id: 'home', label: '打卡打卡', icon: 'clock' },
+                { id: 'myrecords', label: '個人差勤月曆', icon: 'calendar' },
+                { id: 'myrequests', label: '請假／補打卡申請', icon: 'send' }
+            ];
+
+            const tabs = state.isManager ? managerTabs : employeeTabs;
+
+            navTabsContainer.innerHTML = tabs.map(tab => {
+                const isActive = state.currentPage === tab.id;
+                return `
+                    <button onclick="setPage('${tab.id}')" class="flex items-center space-x-2 px-4 py-2 rounded-xl font-semibold text-sm transition whitespace-nowrap ${
+                        isActive 
+                        ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30' 
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/60'
+                    }">
+                        <i data-lucide="${tab.icon}" class="w-4 h-4"></i>
+                        <span>${tab.label}</span>
+                    </button>
+                `;
+            }).join('');
+
+            if (state.isManager) {
+                navTabsContainer.innerHTML += `
+                    <button onclick="openManagerPasswordModal()" class="flex items-center space-x-2 px-4 py-2 rounded-xl font-semibold text-sm transition whitespace-nowrap text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/60">
+                        <i data-lucide="key-round" class="w-4 h-4"></i>
+                        <span>修改主管密碼</span>
+                    </button>
+                `;
+            }
+
+            lucide.createIcons();
+        }
+
+        function startClock() {
+            setInterval(() => {
+                const now = new Date();
+                const clockEl = document.getElementById('digitalClock');
+                const dateEl = document.getElementById('digitalDate');
+                if (clockEl) {
+                    clockEl.textContent = now.toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                }
+                if (dateEl) {
+                    dateEl.textContent = now.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'long' });
+                }
+            }, 1000);
+        }
+
+        function simulateGPS() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        state.gpsLocation = {
+                            lat: pos.coords.latitude,
+                            lng: pos.coords.longitude,
+                            address: "目前 GPS 定位成功（台北市辦公區域附近）",
+                            dist: calculateDistance(pos.coords.latitude, pos.coords.longitude, OFFICE_GEO.lat, OFFICE_GEO.lng)
+                        };
+                        updateGpsUI();
+                    },
+                    (err) => {
+                        // Fallback mock location if denied or not available
+                        state.gpsLocation = {
+                            lat: 25.0339,
+                            lng: 121.5645,
+                            address: "信義區松智路 1 號 (模擬公司 GPS)",
+                            dist: 45 // 45 meters from office
+                        };
+                        updateGpsUI();
+                    }
+                );
+            } else {
+                state.gpsLocation = { lat: 25.0339, lng: 121.5645, address: "信義區 (模擬預設 GPS)", dist: 50 };
+                updateGpsUI();
+            }
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // meters
+            const φ1 = lat1 * Math.PI/180;
+            const φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180;
+            const Δλ = (lon2-lon1) * Math.PI/180;
+
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                    Math.cos(φ1) * Math.cos(φ2) *
+                    Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+            return Math.round(R * c);
+        }
+
+        function updateGpsUI() {
+            const gpsAddressEl = document.getElementById('gpsAddress');
+            const gpsBadgeEl = document.getElementById('gpsBadge');
+            if (gpsAddressEl && state.gpsLocation) {
+                gpsAddressEl.textContent = `${state.gpsLocation.address} (距公司 ${state.gpsLocation.dist}m)`;
+            }
+            if (gpsBadgeEl && state.gpsLocation) {
+                const isValid = state.gpsLocation.dist <= OFFICE_GEO.allowedRadiusMeters;
+                gpsBadgeEl.className = `inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${isValid ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300'}`;
+                gpsBadgeEl.innerHTML = `<i data-lucide="${isValid ? 'check' : 'alert-triangle'}" class="w-3.5 h-3.5 mr-1"></i>${isValid ? '打卡範圍內' : '超出允許範圍'}`;
+                lucide.createIcons();
+            }
+        }
+
+        function renderApp() {
+            const main = document.getElementById('mainContent');
+
+            if (!state.currentUser) {
+                renderLoginPage(main);
+                return;
+            }
+
+            switch (state.currentPage) {
+                case 'home':
+                    renderEmployeeHome(main);
+                    break;
+                case 'myrecords':
+                    renderMyRecords(main);
+                    break;
+                case 'myrequests':
+                    renderMyRequests(main);
+                    break;
+                case 'dashboard':
+                    renderManagerDashboard(main);
+                    break;
+                case 'employees':
+                    renderEmployeeManagement(main);
+                    break;
+                case 'records':
+                    renderManagerRecords(main);
+                    break;
+                case 'requests':
+                    renderManagerRequests(main);
+                    break;
+                default:
+                    renderEmployeeHome(main);
+            }
+            lucide.createIcons();
+        }
+
+        function renderLoginPage(container) {
+            container.innerHTML = `
+                <div class="max-w-md mx-auto my-8 sm:my-16">
+                    <div class="bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-xl border border-slate-100 dark:border-slate-700">
+                        <div class="text-center mb-8">
+                            <div class="inline-flex p-3 bg-blue-50 dark:bg-slate-700 rounded-2xl text-blue-600 dark:text-blue-400 mb-3">
+                                <i data-lucide="shield-check" class="w-8 h-8"></i>
+                            </div>
+                            <h2 class="text-2xl font-black text-slate-900 dark:text-white">系統登入</h2>
+                            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">請選擇或輸入帳號登入系統</p>
+                        </div>
+
+                        <form onsubmit="handleLogin(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">登入帳號</label>
+                                <div class="relative">
+                                    <i data-lucide="user" class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                    <input id="inputUser" type="text" placeholder="例如: wang 或 admin" required class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">密碼</label>
+                                <div class="relative">
+                                    <i data-lucide="lock" class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                    <input id="inputPass" type="password" placeholder="預設密碼: 123" required class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                                </div>
+                            </div>
+
+                            <button type="submit" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 transition transform active:scale-98 flex items-center justify-center gap-2">
+                                <i data-lucide="log-in" class="w-5 h-5"></i>
+                                <span>立即登入</span>
+                            </button>
+                        </form>
+
+                        <!-- Quick Credentials Helper -->
+                        <div class="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700">
+                            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">快速測試帳號 (點擊代入)</div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="quickFill('wang', '123')" class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-left hover:border-blue-500 dark:hover:border-blue-500 transition">
+                                    <div class="text-xs font-bold text-slate-800 dark:text-slate-200">👨‍💼 員工：王小明</div>
+                                    <div class="text-[10px] text-slate-400">wang / 123</div>
+                                </button>
+                                <button onclick="quickFill('admin', getManagerPassword())" class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-left hover:border-blue-500 dark:hover:border-blue-500 transition">
+                                    <div class="text-xs font-bold text-slate-800 dark:text-slate-200">👑 主管：Admin</div>
+                                    <div class="text-[10px] text-slate-400">admin / 目前主管密碼</div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function quickFill(u, p) {
+            document.getElementById('inputUser').value = u;
+            document.getElementById('inputPass').value = p;
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('inputUser').value.trim();
+            const p = document.getElementById('inputPass').value;
+
+            if (u === MANAGER_ACCOUNT.username && p === MANAGER_ACCOUNT.password) {
+                state.currentUser = MANAGER_ACCOUNT;
+                state.isManager = true;
+                state.currentPage = 'dashboard';
+                saveState();
+                renderHeader();
+                renderApp();
+                toast("主管登入成功！", "success");
+                return;
+            }
+
+            const emp = state.employees.find(x => x.username === u && x.password === p);
+            if (emp) {
+                if (!emp.active) {
+                    toast("該員工帳號已被停用，請聯繫 HR 或主管", "error");
+                    return;
+                }
+                state.currentUser = emp;
+                state.isManager = false;
+                state.currentPage = 'home';
+                saveState();
+                renderHeader();
+                renderApp();
+                toast(`歡迎回來，${emp.name}！`, "success");
+            } else {
+                toast("帳號或密碼不正確", "error");
+            }
+        }
+
+        function renderEmployeeHome(container) {
+            const emp = state.currentUser;
+            const todaySchedule = getEmployeeSchedule(emp, new Date());
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const dateStr = now.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'long' });
+
+            container.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    <!-- Main Clock Card -->
+                    <div class="lg:col-span-2 bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col justify-between">
+                        <div class="absolute -right-10 -bottom-10 opacity-10 pointer-events-none">
+                            <i data-lucide="clock" class="w-80 h-80"></i>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="bg-white/20 backdrop-blur px-3 py-1 rounded-full text-xs font-semibold tracking-wide">
+                                    今日打卡狀態
+                                </span>
+                                <span id="gpsBadge" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-white/20 text-white">
+                                    <i data-lucide="map-pin" class="w-3.5 h-3.5 mr-1"></i> 定位中...
+                                </span>
+                            </div>
+
+                            <div class="mt-6">
+                                <div id="digitalDate" class="text-blue-100 font-medium text-sm sm:text-base">${dateStr}</div>
+                                <div id="digitalClock" class="text-4xl sm:text-6xl font-black tracking-tight my-1 font-mono">${timeStr}</div>
+                                <div class="text-blue-100 text-sm mt-1 flex items-center gap-1">
+                                    <i data-lucide="user" class="w-4 h-4"></i>
+                                    <span>${emp.name} (${emp.code}) · ${emp.dept} - ${emp.job}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Big Punch Buttons -->
+                        <div class="mt-8 pt-6 border-t border-white/20 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <button onclick="handlePunch('in')" class="group bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white p-5 rounded-2xl shadow-lg transition flex items-center justify-between">
+                                <div class="text-left">
+                                    <div class="text-xs uppercase tracking-wider text-emerald-100 font-bold">上班登記</div>
+                                    <div class="text-xl font-black mt-0.5">🟢 上班打卡</div>
+                                </div>
+                                <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
+                                    <i data-lucide="arrow-right-circle" class="w-7 h-7"></i>
+                                </div>
+                            </button>
+
+                            <button onclick="handlePunch('out')" class="group bg-rose-500 hover:bg-rose-400 active:scale-95 text-white p-5 rounded-2xl shadow-lg transition flex items-center justify-between">
+                                <div class="text-left">
+                                    <div class="text-xs uppercase tracking-wider text-rose-100 font-bold">下班登記</div>
+                                    <div class="text-xl font-black mt-0.5">🔴 下班打卡</div>
+                                </div>
+                                <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
+                                    <i data-lucide="log-out" class="w-7 h-7"></i>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Side Stats & GPS Status -->
+                    <div class="space-y-6">
+                        
+                        <!-- Today Punch Info -->
+                        <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+                            <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base mb-4 flex items-center gap-2">
+                                <i data-lucide="calendar-check" class="w-5 h-5 text-blue-500"></i>
+                                <span>今日卡別記錄</span>
+                            </h3>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                                    <span class="text-xs text-slate-400 font-bold block mb-1">上班時間</span>
+                                    <span id="statInTime" class="text-2xl font-black text-slate-800 dark:text-slate-100 font-mono">${emp.in || '--:--'}</span>
+                                </div>
+                                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                                    <span class="text-xs text-slate-400 font-bold block mb-1">下班時間</span>
+                                    <span id="statOutTime" class="text-2xl font-black text-slate-800 dark:text-slate-100 font-mono">${emp.out || '--:--'}</span>
+                                </div>
+                            </div>
+                            <div class="mt-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-xs flex items-center justify-between">
+                                <span class="text-slate-500 dark:text-slate-400 font-semibold">我的班表</span>
+                                <span class="font-mono font-bold text-slate-700 dark:text-slate-200">${todaySchedule.workStart} ～ ${todaySchedule.workEnd}（今日加班上限 ${todaySchedule.overtimeHours} 小時）</span>
+                            </div>
+
+                            <div class="mt-4 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-xs flex items-center justify-between font-semibold">
+                                <span>今日出勤狀態</span>
+                                <span class="px-2.5 py-0.5 rounded-full text-xs font-extrabold ${getBadgeClass(emp.status)}">${emp.status}</span>
+                            </div>
+                        </div>
+
+                        <!-- GPS Info Card -->
+                        <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+                            <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base mb-2 flex items-center gap-2">
+                                <i data-lucide="map-pin" class="w-5 h-5 text-rose-500"></i>
+                                <span>打卡位置 GPS 偵測</span>
+                            </h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">系統自動驗證您是否於公司允許範圍內</p>
+                            
+                            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-medium text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                                <i data-lucide="navigation" class="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0"></i>
+                                <span id="gpsAddress">${state.gpsLocation ? state.gpsLocation.address : '正在定位您的位置...'}</span>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+                            <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-3">快速工具</h3>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="setPage('myrequests')" class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 transition flex flex-col items-center gap-1">
+                                    <i data-lucide="file-plus" class="w-5 h-5 text-blue-500"></i>
+                                    <span>申請補打卡</span>
+                                </button>
+                                <button onclick="setPage('myrequests')" class="p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 transition flex flex-col items-center gap-1">
+                                    <i data-lucide="plane" class="w-5 h-5 text-indigo-500"></i>
+                                    <span>申請請假</span>
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            `;
+            updateGpsUI();
+        }
+
+        function getBadgeClass(status) {
+            switch (status) {
+                case '正常': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300';
+                case '遲到': return 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300';
+                case '加班': return 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300';
+                case '請假': return 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300';
+                default: return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
+            }
+        }
+
+        function handlePunch(type) {
+            if (!state.gpsLocation) {
+                toast("尚未取得 GPS 位置，請稍候再試", "warning");
+                return;
+            }
+
+            if (state.gpsLocation.dist > OFFICE_GEO.allowedRadiusMeters) {
+                toast(`您超出允許打卡範圍 (${OFFICE_GEO.allowedRadiusMeters}m)，目前距離 ${state.gpsLocation.dist}m`, "error");
+                return;
+            }
+
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' });
+            const emp = state.employees.find(x => x.id === state.currentUser.id);
+
+            if (type === 'in') {
+                emp.in = timeStr;
+                // 依該員工個人設定的上班時間判定是否遲到
+                const schedule = getEmployeeSchedule(emp, now);
+                const start = schedule.workStart;
+                const startMinutes = Number(start.split(':')[0]) * 60 + Number(start.split(':')[1]);
+                const nowMinutes = now.getHours() * 60 + now.getMinutes();
+                const isLate = nowMinutes > startMinutes;
+                emp.status = isLate ? '遲到' : '正常';
+                toast(`上班打卡成功！時間：${timeStr}（班表 ${start}，${emp.status}）`, isLate ? "warning" : "success");
+            } else {
+                emp.out = timeStr;
+                // 依該員工個人設定的下班時間判定加班
+                const schedule = getEmployeeSchedule(emp, now);
+                const end = schedule.workEnd;
+                const endMinutes = Number(end.split(':')[0]) * 60 + Number(end.split(':')[1]);
+                const nowMinutes = now.getHours() * 60 + now.getMinutes();
+                const overtimeLimit = schedule.overtimeHours;
+                const rawOvertimeMinutes = Math.max(0, nowMinutes - endMinutes);
+                const overtimeMinutes = Math.min(rawOvertimeMinutes, overtimeLimit * 60);
+                const dailyLimitMinutes = Math.round((Number(emp.dailyWorkHoursLimit) || 8) * 60);
+                let actualWorkedMinutes = Math.max(0, nowMinutes - (emp.in ? Number(emp.in.split(':')[0]) * 60 + Number(emp.in.split(':')[1]) : nowMinutes));
+                actualWorkedMinutes = Math.min(actualWorkedMinutes, dailyLimitMinutes);
+                emp.workedHoursToday = Number((actualWorkedMinutes / 60).toFixed(2));
+                emp.overtimeHoursToday = Number((overtimeMinutes / 60).toFixed(2));
+                if (rawOvertimeMinutes > 0) {
+                    emp.status = '加班';
+                }
+                toast(`下班打卡成功！時間：${timeStr}（班表 ${end}，今日加班 ${emp.overtimeHoursToday} 小時）`, "success");
+            }
+
+            saveState();
+            renderApp();
+        }
+
+        function renderMyRecords(container) {
+            const emp = state.currentUser;
+            const records = state.attendanceRecords.filter(x => x.employeeId === emp.id);
+
+            container.innerHTML = `
+                <div class="space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 dark:text-white">個人出勤月歷與紀錄</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">員工：${emp.name} (${emp.dept})</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="month" value="2026-10" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm font-semibold">
+                            <button onclick="exportCSV('${emp.name}_個人出勤報表.csv', records)" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                                <span>匯出 Excel / CSV</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Attendance Table -->
+                    <div class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-700 text-slate-500 text-xs uppercase font-bold tracking-wider">
+                                        <th class="p-4">日期</th>
+                                        <th class="p-4">上班打卡</th>
+                                        <th class="p-4">下班打卡</th>
+                                        <th class="p-4">出勤狀態</th>
+                                        <th class="p-4">打卡位置 / 備註</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50 text-sm">
+                                    ${records.map(r => `
+                                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
+                                            <td class="p-4 font-bold text-slate-800 dark:text-slate-200">${r.date}</td>
+                                            <td class="p-4 font-mono font-semibold">${r.inTime}</td>
+                                            <td class="p-4 font-mono font-semibold">${r.outTime}</td>
+                                            <td class="p-4">
+                                                <span class="px-2.5 py-1 rounded-full text-xs font-bold ${getBadgeClass(r.status)}">${r.status}</span>
+                                            </td>
+                                            <td class="p-4 text-xs text-slate-500 dark:text-slate-400">${r.location}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderMyRequests(container) {
+            const myRequests = state.requests.filter(r => r.empId === state.currentUser.id);
+
+            container.innerHTML = `
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 dark:text-white">請假與補打卡簽核申請</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">線上提交補打卡或請假單，等待主管審核</p>
+                        </div>
+                        <button onclick="openRequestModal()" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-blue-500/20">
+                            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                            <span>新增申請單</span>
+                        </button>
+                    </div>
+
+                    <!-- Requests List -->
+                    <div class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+                        <div class="p-4 border-b border-slate-100 dark:border-slate-700 font-bold text-sm text-slate-700 dark:text-slate-200">
+                            已提交之申請紀錄
+                        </div>
+                        <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                            ${myRequests.length === 0 ? `
+                                <div class="p-8 text-center text-slate-400 text-sm">目前尚無任何申請紀錄</div>
+                            ` : myRequests.map(r => `
+                                <div class="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
+                                    <div class="space-y-1">
+                                        <div class="flex items-center gap-2">
+                                            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${r.type === '補打卡' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300'}">${r.type}</span>
+                                            <span class="font-bold text-slate-800 dark:text-slate-200 text-sm">${r.date}</span>
+                                            <span class="text-xs text-slate-400">(${r.timestamp})</span>
+                                        </div>
+                                        <p class="text-xs text-slate-600 dark:text-slate-300">事由：${r.reason}</p>
+                                    </div>
+                                    <div>
+                                        <span class="px-3 py-1 rounded-full text-xs font-bold ${r.status === '已核准' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' : (r.status === '已駁回' ? 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300')}">
+                                            ${r.status}
+                                        </span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openRequestModal() {
+            showModal(
+                "填寫簽核申請單",
+                `
+                <form id="requestForm" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">申請類別</label>
+                        <select id="reqType" class="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 text-sm font-medium">
+                            <option value="補打卡">補打卡申請</option>
+                            <option value="事假">事假</option>
+                            <option value="病假">病假</option>
+                            <option value="特休">特休 (年假)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">申請日期</label>
+                        <input id="reqDate" type="date" required value="${new Date().toISOString().split('T')[0]}" class="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 text-sm font-medium">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">申請原因 / 事由說明</label>
+                        <textarea id="reqReason" required rows="3" placeholder="請詳細填寫事由..." class="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 text-sm font-medium"></textarea>
+                    </div>
+                </form>
+                `,
+                [
+                    { text: "取消", class: "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200", onclick: "closeModal()" },
+                    { text: "送出申請", class: "bg-blue-600 text-white", onclick: "submitRequestForm()" }
+                ]
+            );
+        }
+
+        function submitRequestForm() {
+            const type = document.getElementById('reqType').value;
+            const date = document.getElementById('reqDate').value;
+            const reason = document.getElementById('reqReason').value.trim();
+
+            if (!date || !reason) {
+                toast("請完整填寫日期與申請事由", "warning");
+                return;
+            }
+
+            const newReq = {
+                id: "R" + Math.floor(100 + Math.random() * 900),
+                empId: state.currentUser.id,
+                name: state.currentUser.name,
+                type: type,
+                date: date,
+                reason: reason,
+                status: "待審核",
+                timestamp: new Date().toLocaleDateString('zh-TW') + ' ' + new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
+            };
+
+            state.requests.unshift(newReq);
+            saveState();
+            closeModal();
+            renderApp();
+            toast("申請單已成功送出，請靜候主管審核！", "success");
+        }
+
+        function renderManagerDashboard(container) {
+            const total = state.employees.length;
+            const clockedIn = state.employees.filter(e => e.in !== "").length;
+            const late = state.employees.filter(e => e.status === "遲到").length;
+            const missing = total - clockedIn;
+
+            container.innerHTML = `
+                <div class="space-y-6">
+                    <!-- Stat Cards Grid -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                        <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+                            <div>
+                                <div class="text-xs text-slate-400 font-bold uppercase tracking-wider">應出勤總人數</div>
+                                <div class="text-3xl font-black text-slate-800 dark:text-slate-100 mt-1">${total} <span class="text-xs font-normal text-slate-400">人</span></div>
+                            </div>
+                            <div class="p-3 bg-blue-50 dark:bg-blue-950 text-blue-600 rounded-2xl">
+                                <i data-lucide="users" class="w-6 h-6"></i>
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+                            <div>
+                                <div class="text-xs text-slate-400 font-bold uppercase tracking-wider">今日已打卡</div>
+                                <div class="text-3xl font-black text-emerald-600 dark:text-emerald-400 mt-1">${clockedIn} <span class="text-xs font-normal text-slate-400">人</span></div>
+                            </div>
+                            <div class="p-3 bg-emerald-50 dark:bg-emerald-950 text-emerald-600 rounded-2xl">
+                                <i data-lucide="user-check" class="w-6 h-6"></i>
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+                            <div>
+                                <div class="text-xs text-slate-400 font-bold uppercase tracking-wider">今日遲到人數</div>
+                                <div class="text-3xl font-black text-amber-500 mt-1">${late} <span class="text-xs font-normal text-slate-400">人</span></div>
+                            </div>
+                            <div class="p-3 bg-amber-50 dark:bg-amber-950 text-amber-600 rounded-2xl">
+                                <i data-lucide="clock" class="w-6 h-6"></i>
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+                            <div>
+                                <div class="text-xs text-slate-400 font-bold uppercase tracking-wider">未打卡 / 缺勤</div>
+                                <div class="text-3xl font-black text-rose-500 mt-1">${missing} <span class="text-xs font-normal text-slate-400">人</span></div>
+                            </div>
+                            <div class="p-3 bg-rose-50 dark:bg-rose-950 text-rose-600 rounded-2xl">
+                                <i data-lucide="user-x" class="w-6 h-6"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Chart & Today's Attendance Table -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        
+                        <!-- Chart Area -->
+                        <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
+                            <div>
+                                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base mb-1">今日出勤比例</h3>
+                                <p class="text-xs text-slate-400 mb-4">即時出勤與異常統計分佈</p>
+                            </div>
+                            <div class="relative flex items-center justify-center p-4">
+                                <canvas id="attendanceChart" class="max-h-60"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Live Status Table -->
+                        <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm flex flex-col">
+                            <div class="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base">全公司今日動態即時榜</h3>
+                                <span class="text-xs text-slate-400">即時更新</span>
+                            </div>
+                            <div class="overflow-x-auto flex-1">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="bg-slate-50 dark:bg-slate-900/50 text-slate-400 text-xs uppercase font-bold tracking-wider">
+                                            <th class="p-3.5 pl-5">員工</th>
+                                            <th class="p-3.5">部門/職位</th>
+                                            <th class="p-3.5">上班打卡</th>
+                                            <th class="p-3.5">下班打卡</th>
+                                            <th class="p-3.5">狀態</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700/60 text-sm">
+                                        ${state.employees.map(e => `
+                                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                                                <td class="p-3.5 pl-5 font-bold text-slate-800 dark:text-slate-200">${e.name}</td>
+                                                <td class="p-3.5 text-xs text-slate-500">${e.dept} / ${e.job}</td>
+                                                <td class="p-3.5 font-mono text-xs font-semibold">${e.in || '--:--'}</td>
+                                                <td class="p-3.5 font-mono text-xs font-semibold">${e.out || '--:--'}</td>
+                                                <td class="p-3.5">
+                                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold ${getBadgeClass(e.status)}">${e.status}</span>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            `;
+
+            setTimeout(initChart, 50);
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('attendanceChart');
+            if (!ctx) return;
+
+            const clockedIn = state.employees.filter(e => e.status === "正常").length;
+            const late = state.employees.filter(e => e.status === "遲到").length;
+            const missing = state.employees.filter(e => e.in === "").length;
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['正常上班', '遲到', '未打卡'],
+                    datasets: [{
+                        data: [clockedIn, late, missing],
+                        backgroundColor: ['#10b981', '#f59e0b', '#f43f5e'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        function renderEmployeeManagement(container) {
+            container.innerHTML = `
+                <div class="space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 dark:text-white">員工檔案與帳號管理</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">維護公司同仁資料、帳號密碼與啟用狀態</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="document.getElementById('excelScheduleFileInput').click()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/20">
+                                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                                <span>匯入 Excel 班表</span>
+                            </button>
+                            <button onclick="openEmployeeModal()" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-blue-500/20">
+                                <i data-lucide="user-plus" class="w-4 h-4"></i>
+                                <span>新增員工</span>
+                            </button>
+                            <button onclick="confirmClearAllEmployees()" class="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-rose-500/20">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                <span>一鍵清除員工資料</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-700 text-slate-400 text-xs uppercase font-bold tracking-wider">
+                                        <th class="p-4">員工編號</th>
+                                        <th class="p-4">姓名</th>
+                                        <th class="p-4">登入帳號</th>
+                                        <th class="p-4">職稱</th>
+                                        <th class="p-4">班表</th>
+                                        <th class="p-4">每日上班時數上限</th>
+                                        <th class="p-4">每日加班上限</th>
+                                        <th class="p-4">狀態</th>
+                                        <th class="p-4 text-right">管理操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
+                                    ${state.employees.map(e => `
+                                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
+                                            <td class="p-4 font-mono font-semibold text-xs text-slate-500">${e.code}</td>
+                                            <td class="p-4 font-bold text-slate-800 dark:text-slate-200">${e.name}</td>
+                                            <td class="p-4 font-mono text-xs text-slate-500">${e.username}</td>
+                                            <td class="p-4 text-xs font-medium text-slate-500">${e.job}</td>
+                                            <td class="p-4 font-mono text-xs font-semibold">${e.workStart || "09:00"} - ${e.workEnd || "18:00"}</td>
+                                            <td class="p-4 font-mono text-xs">${e.dailyWorkHoursLimit ?? getDailyWorkHoursLimitByJob(e.job)} 小時</td>
+                                            <td class="p-4">
+                                                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${e.active ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'}">
+                                                    ${e.active ? '在職中' : '已停用'}
+                                                </span>
+                                            </td>
+                                            <td class="p-4 text-right space-x-1">
+                                                <button onclick="openEmployeeModal(${e.id})" class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold transition">
+                                                    編輯
+                                                </button>
+                                                <button onclick="openMonthlyScheduleModal(${e.id})" class="px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-xs font-bold transition">
+                                                    每月班表
+                                                </button>
+                                                <button onclick="toggleEmployeeActive(${e.id})" class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold ${e.active ? 'text-rose-500' : 'text-emerald-500'} transition">
+                                                    ${e.active ? '停用' : '啟用'}
+                                                </button>
+                                                <button onclick="confirmDeleteEmployee(${e.id})" class="px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-bold transition">
+                                                    刪除
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openEmployeeModal(empId = null) {
+            const isEdit = !!empId;
+            const emp = isEdit ? state.employees.find(x => x.id === empId) : { code: '', name: '', username: '', password: '123', dept: '', job: '', workStart: '09:00', workEnd: '18:00', dailyWorkHoursLimit: 8, overtimeHours: 2 };
+            if (emp && isEdit) emp.dailyWorkHoursLimit = getDailyWorkHoursLimitByJob(emp.job);
+
+            showModal(
+                isEdit ? "編輯員工資料" : "新增員工檔案",
+                `
+                <form id="empForm" class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">員工編號</label>
+                        <input id="fCode" value="${emp.code}" required placeholder="例如 E006" class="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 text-sm font-medium">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">姓名</label>
+                        <input id="fName" value="${emp.name}" required placeholder="例如 李大明" class="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 text-sm font-medium">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">登入帳號</label>
+                        <input id="fUser" value="${emp.username}" required placeholder="帳號" class="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 text-sm font-medium">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">密碼</label>
+                        <input id="fPass" type="password" value="${emp.password}" required placeholder="密碼" class="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 text-sm font-medium">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">職位</label>
+                        <input id="fJob" value="${emp.job}" required oninput="document.getElementById('fDailyWorkHoursLimit').value=getDailyWorkHoursLimitByJob(this.value)" placeholder="工程師" class="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 text-sm font-medium">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">上班時間</label>
+                        <input id="fWorkStart" type="time" value="${emp.workStart || '09:00'}" required class="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 text-sm font-medium">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">下班時間</label>
+                        <input id="fWorkEnd" type="time" value="${emp.workEnd || '18:00'}" required class="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 text-sm font-medium">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">每日加班時數上限</label>
+                        <div class="mb-4"><label class="block text-xs font-bold text-slate-500 mb-1">每日上班時數上限</label><input id="fDailyWorkHoursLimit" type="number" min="0.5" max="24" step="0.5" value="${emp.dailyWorkHoursLimit ?? 8}" required class="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 text-sm font-medium"><p class="text-[11px] text-slate-400 mt-1">每日實際工作時數超過此上限時，超出部分不列入正常上班時數。</p></div>
+                        <input id="fOvertimeHours" type="number" min="0" max="24" step="0.5" value="${emp.overtimeHours ?? 2}" required class="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 text-sm font-medium">
+                        <p class="text-[11px] text-slate-400 mt-1">例如設定 2 小時，最多計算每日 2 小時加班</p>
+                    </div>
+                    <div class="col-span-2 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-xs">
+                        <i data-lucide="info" class="w-3.5 h-3.5 inline mr-1"></i>
+                        上班超過設定時間會判定「遲到」；下班超過設定時間會判定「加班」。
+                    </div>
+                </form>
+                `,
+                [
+                    { text: "取消", class: "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200", onclick: "closeModal()" },
+                    { text: isEdit ? "儲存更新" : "確認新增", class: "bg-blue-600 text-white", onclick: `saveEmployee(${empId})` }
+                ]
+            );
+        }
+
+        function openMonthlyScheduleModal(empId, selectedMonth = null) {
+            const emp = state.employees.find(x => x.id === empId);
+            if (!emp) return;
+
+            ensureMonthlySchedule(emp);
+            const now = new Date();
+            const monthValue = selectedMonth || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const [year, month] = monthValue.split('-').map(Number);
+            const daysInMonth = new Date(year, month, 0).getDate();
+
+            const rows = Array.from({ length: daysInMonth }, (_, i) => {
+                const day = i + 1;
+                const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const dateObj = new Date(year, month - 1, day);
+                const weekday = dateObj.toLocaleDateString('zh-TW', { weekday: 'short' });
+                const saved = emp.monthlySchedule[dateKey] || {};
+                const schedule = {
+                    workStart: saved.workStart || emp.workStart || '09:00',
+                    workEnd: saved.workEnd || emp.workEnd || '18:00',
+                    overtimeHours: Number.isFinite(Number(saved.overtimeHours))
+                        ? Number(saved.overtimeHours)
+                        : (Number.isFinite(Number(emp.overtimeHours)) ? Number(emp.overtimeHours) : 2),
+                    shiftCode: saved.shiftCode || ''
+                };
+                const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+                return `
+                    <tr class="${isWeekend ? 'bg-slate-50/70 dark:bg-slate-900/30' : ''}">
+                        <td class="p-2 font-bold whitespace-nowrap">${day} 日 <span class="text-xs text-slate-400">${weekday}</span></td>
+                        <td class="p-2"><input type="text" id="ms_code_${day}" value="${schedule.shiftCode}" placeholder="A / B / X" class="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 dark:bg-slate-900 text-sm"></td>
+                        <td class="p-2"><input type="time" id="ms_in_${day}" value="${schedule.workStart}" class="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 dark:bg-slate-900 text-sm"></td>
+                        <td class="p-2"><input type="time" id="ms_out_${day}" value="${schedule.workEnd}" class="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 dark:bg-slate-900 text-sm"></td>
+                        <td class="p-2"><input type="number" id="ms_ot_${day}" min="0" max="24" step="0.5" value="${schedule.overtimeHours}" class="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 dark:bg-slate-900 text-sm"></td>
+                        <td class="p-2 text-center"><button type="button" onclick="clearMonthlyScheduleDay(${empId}, '${dateKey}', '${monthValue}')" class="text-xs font-bold text-rose-500 hover:underline">恢復預設</button></td>
+                    </tr>`;
+            }).join('');
+
+            showModal(
+                `每月班表設定｜${emp.name}`,
+                `
+                <div class="space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <p class="text-sm font-bold text-slate-800 dark:text-white">${emp.code} · ${emp.dept} · ${emp.job}</p>
+                            <p class="text-xs text-slate-500 mt-1">可逐日設定上班、下班與每日加班上限；輸入班別代碼後可搭配匯入規則使用。A/B/C/D/E/F、▲、早1～早3、晚、支、值、AB 等會自動帶入對應時段。</p>
+                        </div>
+                        <input id="monthlyScheduleMonth" type="month" value="${monthValue}" onchange="openMonthlyScheduleModal(${empId}, this.value)" class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 text-sm font-bold">
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" onclick="fillMonthlySchedule(${daysInMonth}, '${emp.workStart || '09:00'}', '${emp.workEnd || '18:00'}', ${emp.overtimeHours ?? 2})" class="px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-xs font-bold">全部套用員工預設</button>
+                        <button type="button" onclick="fillMonthlySchedule(${daysInMonth}, '09:00', '18:00', 2)" class="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold">全部套用 09:00-18:00</button>
+                    </div>
+                    <div class="max-h-[50vh] overflow-auto border border-slate-200 dark:border-slate-700 rounded-xl">
+                        <table class="w-full text-left text-sm">
+                            <thead class="sticky top-0 bg-slate-100 dark:bg-slate-900 z-10">
+                                <tr><th class="p-2">日期</th><th class="p-2">班別代碼</th><th class="p-2">上班</th><th class="p-2">下班</th><th class="p-2">加班上限</th><th class="p-2">操作</th></tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">${rows}</tbody>
+                        </table>
+                    </div>
+                </div>
+                `,
+                [
+                    { text: "取消", class: "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200", onclick: "closeModal()" },
+                    { text: "儲存本月班表", class: "bg-blue-600 text-white", onclick: `saveMonthlySchedule(${empId}, '${monthValue}', ${daysInMonth})` }
+                ]
+            );
+        }
+
+        function fillMonthlySchedule(daysInMonth, start, end, overtime) {
+            for (let day = 1; day <= daysInMonth; day++) {
+                const a = document.getElementById(`ms_in_${day}`);
+                const b = document.getElementById(`ms_out_${day}`);
+                const c = document.getElementById(`ms_ot_${day}`);
+                if (a) a.value = start;
+                if (b) b.value = end;
+                if (c) c.value = overtime;
+            }
+        }
+
+        function clearMonthlyScheduleDay(empId, dateKey, monthValue) {
+            const emp = state.employees.find(x => x.id === empId);
+            if (!emp) return;
+            ensureMonthlySchedule(emp);
+            delete emp.monthlySchedule[dateKey];
+            saveState();
+            openMonthlyScheduleModal(empId, monthValue);
+            toast(`${dateKey} 已恢復員工預設班表`, "info");
+        }
+
+        function saveMonthlySchedule(empId, monthValue, daysInMonth) {
+            const emp = state.employees.find(x => x.id === empId);
+            if (!emp) return;
+            ensureMonthlySchedule(emp);
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const shiftCode = document.getElementById(`ms_code_${day}`)?.value.trim() || '';
+                const start = document.getElementById(`ms_in_${day}`)?.value;
+                const end = document.getElementById(`ms_out_${day}`)?.value;
+                const overtime = Number(document.getElementById(`ms_ot_${day}`)?.value);
+                if (!start || !end || !Number.isFinite(overtime) || overtime < 0 || overtime > 24) {
+                    toast(`第 ${day} 日班表資料不完整或加班上限無效`, "warning");
+                    return;
+                }
+                const dateKey = `${monthValue}-${String(day).padStart(2, '0')}`;
+                emp.monthlySchedule[dateKey] = { workStart: start, workEnd: end, overtimeHours: overtime, shiftCode };
+            }
+
+            saveState();
+            closeModal();
+            renderApp();
+            toast(`${emp.name} 的 ${monthValue} 每月班表已儲存`, "success");
+        }
+
+        function normalizeExcelTime(value, fallback) {
+            if (value instanceof Date) {
+                const hh = String(value.getHours()).padStart(2, '0');
+                const mm = String(value.getMinutes()).padStart(2, '0');
+                return `${hh}:${mm}`;
+            }
+            if (typeof value === 'number' && value >= 0 && value < 1) {
+                const total = Math.round(value * 24 * 60);
+                return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+            }
+            const str = String(value ?? '').trim();
+            const m = str.match(/^(\d{1,2})[:：](\d{1,2})$/);
+            if (m) return `${String(Number(m[1])).padStart(2, '0')}:${String(Number(m[2])).padStart(2, '0')}`;
+            return fallback;
+        }
+
+        function importExcelSchedule(input) {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            if (typeof XLSX === 'undefined') {
+                toast('Excel 元件尚未載入，請重新整理頁面後再試', 'error');
+                input.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const workbook = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                    if (!rows.length) throw new Error('Excel 沒有資料');
+
+                    const headerRowIndex = rows.findIndex(r => r.slice(0, 6).some(v => String(v).trim() === '姓名'));
+                    if (headerRowIndex < 0) throw new Error('找不到「姓名」欄位');
+                    const header = rows[headerRowIndex];
+                    const nameCol = header.findIndex(v => String(v).trim() === '姓名');
+                    const dayCols = {};
+                    header.forEach((v, idx) => {
+                        const n = Number(v);
+                        if (Number.isInteger(n) && n >= 1 && n <= 31) dayCols[n] = idx;
+                    });
+                    if (Object.keys(dayCols).length < 5) throw new Error('找不到日期欄位（1～31）');
+
+                    let title = String(rows[1]?.[0] || rows[0]?.[0] || file.name).trim();
+                    const ym = title.match(/(\d{2,4})年(\d{1,2})月/);
+                    let year = new Date().getFullYear();
+                    let month = new Date().getMonth() + 1;
+                    if (ym) {
+                        year = Number(ym[1]);
+                        if (year < 1911) year += 1911;
+                        month = Number(ym[2]);
+                    }
+                    const monthValue = `${year}-${String(month).padStart(2, '0')}`;
+                    const daysInMonth = new Date(year, month, 0).getDate();
+                    let imported = 0, created = 0, updated = 0, skipped = 0;
+
+                    for (let r = headerRowIndex + 1; r < rows.length; r++) {
+                        const row = rows[r] || [];
+                        const name = String(row[nameCol] ?? '').trim();
+                        if (!name || name === '每日上勤人數' || name === '備註') continue;
+                        const codeValues = dayCols;
+                        const hasShift = Object.values(codeValues).some(c => String(row[c] ?? '').trim() !== '');
+                        if (!hasShift) continue;
+
+                        let emp = state.employees.find(x => x.name === name);
+                        if (!emp) {
+                            const vehicle = String(row[0] ?? '').trim();
+                            const job = String(row[1] ?? '').trim() || '員工';
+                            const id = Date.now() + created;
+                            emp = {
+                                id, code: `E${String(state.employees.length + 1).padStart(3, '0')}`,
+                                username: `emp${String(state.employees.length + 1).padStart(3, '0')}`,
+                                password: '123', name, dept: vehicle || '未分類', job,
+                                workStart: '09:00', workEnd: '18:00', overtimeHours: 2, dailyWorkHoursLimit: getDailyWorkHoursLimitByJob(job),
+                                in: '', out: '', status: '未打卡', active: true, lat: null, lng: null,
+                                monthlySchedule: {}
+                            };
+                            state.employees.push(emp);
+                            created++;
+                        } else {
+                            updated++;
+                        }
+                        ensureMonthlySchedule(emp);
+                        for (let day = 1; day <= daysInMonth; day++) {
+                            const col = dayCols[day];
+                            if (col === undefined) continue;
+                            const shiftCode = String(row[col] ?? '').trim();
+                            if (!shiftCode) continue;
+                            const dateKey = `${monthValue}-${String(day).padStart(2, '0')}`;
+                            const old = emp.monthlySchedule[dateKey] || {};
+                            emp.monthlySchedule[dateKey] = applyShiftCodeToSchedule(emp, dateKey, shiftCode, old);
+                            imported++;
+                        }
+                    }
+                    saveState();
+                    renderApp();
+                    toast(`Excel 班表匯入完成：${monthValue}，${imported} 筆班別；新增 ${created} 人、更新 ${updated} 人`, 'success');
+                    setTimeout(() => openImportedScheduleSummary(monthValue, imported, created, updated), 150);
+                } catch (err) {
+                    console.error(err);
+                    toast(`Excel 匯入失敗：${err.message || '格式無法辨識'}`, 'error');
+                } finally {
+                    input.value = '';
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function openImportedScheduleSummary(monthValue, imported, created, updated) {
+            showModal('Excel 班表匯入結果', `
+                <div class="space-y-4 text-sm">
+                    <div class="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300">
+                        <div class="font-bold text-base mb-1">${monthValue} 班表已匯入</div>
+                        <div>共匯入 <b>${imported}</b> 筆每日班別。</div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900"><div class="text-xs text-slate-400">新增員工</div><div class="text-xl font-black">${created}</div></div>
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900"><div class="text-xs text-slate-400">既有員工更新</div><div class="text-xl font-black">${updated}</div></div>
+                    </div>
+                    <div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-xs leading-6">
+                        已建立班表代碼對應：A=09:00-17:00、B=17:00-01:00、C=07:00-15:00、D=15:00-23:00、E=12:00-23:00、F=11:00-19:00、▲=09:00-19:00、早1=06:30-18:30、早2=07:00-19:00、早3=10:00-22:00、晚=18:30-06:30、支=11:00-19:00、值=11:00-19:00、AB=09:00-01:00。X、特、補、原、事等休假類代碼會自動標示為非固定工時；S、烏、台中、夫人等沒有明確時段的代碼則保留員工原預設時間。
+                    </div>
+                </div>
+            `, [
+                { text: '關閉', class: 'bg-blue-600 text-white', onclick: 'closeModal()' }
+            ]);
+        }
+
+        function saveEmployee(empId) {
+            const code = document.getElementById('fCode').value.trim();
+            const name = document.getElementById('fName').value.trim();
+            const username = document.getElementById('fUser').value.trim();
+            const password = document.getElementById('fPass').value;
+            const dept = empId ? ((state.employees.find(x => x.id === empId) || {}).dept || '') : '';
+            const job = document.getElementById('fJob').value.trim();
+            const workStart = document.getElementById('fWorkStart').value;
+            const workEnd = document.getElementById('fWorkEnd').value;
+            const dailyWorkHoursLimit = getDailyWorkHoursLimitByJob(document.getElementById('fJob').value);
+            const overtimeHours = Number(document.getElementById('fOvertimeHours').value);
+
+            if (!code || !name || !username || !password || !job || !workStart || !workEnd || !Number.isFinite(dailyWorkHoursLimit) || dailyWorkHoursLimit <= 0 || dailyWorkHoursLimit > 24 || !Number.isFinite(overtimeHours) || overtimeHours < 0 || overtimeHours > 24) {
+                toast("請完整填寫所有欄位資訊", "warning");
+                return;
+            }
+
+            if (empId) {
+                const target = state.employees.find(x => x.id === empId);
+                Object.assign(target, { code, name, username, password, dept, job, workStart, workEnd, dailyWorkHoursLimit, overtimeHours });
+                toast("員工資料更新成功！", "success");
+            } else {
+                const newEmp = {
+                    id: Math.max(...state.employees.map(x => x.id), 0) + 1,
+                    code, name, username, password, dept, job, workStart, workEnd, overtimeHours,
+                    in: "", out: "", status: "未打卡", active: true
+                };
+                state.employees.push(newEmp);
+                toast("成功新增員工資料！", "success");
+            }
+
+            saveState();
+            closeModal();
+            renderApp();
+        }
+
+
+        function confirmDeleteEmployee(empId) {
+            const emp = state.employees.find(x => x.id === empId);
+            if (!emp) {
+                toast("找不到要刪除的員工", "error");
+                return;
+            }
+
+            showModal(
+                "確認刪除員工",
+                `
+                <div class="space-y-4">
+                    <div class="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50">
+                        <div class="flex items-center gap-3">
+                            <div class="w-11 h-11 rounded-xl bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-300 flex items-center justify-center">
+                                <i data-lucide="trash-2" class="w-6 h-6"></i>
+                            </div>
+                            <div>
+                                <div class="font-black text-rose-700 dark:text-rose-300">${emp.name}（${emp.code}）</div>
+                                <div class="text-xs text-rose-600 dark:text-rose-400 mt-0.5">${emp.dept} · ${emp.job}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-sm text-slate-600 dark:text-slate-300 leading-6">
+                        確定要刪除此員工嗎？刪除後將同步移除該員工的出勤紀錄、申請紀錄及班表資料，且無法從本系統復原。
+                    </p>
+                    <label class="flex items-start gap-2 text-xs text-slate-500 dark:text-slate-400">
+                        <input id="confirmDeleteEmployee" type="checkbox" class="mt-0.5 rounded border-slate-300">
+                        <span>我確認要永久刪除這名員工及其相關資料</span>
+                    </label>
+                </div>
+                `,
+                [
+                    { text: "取消", class: "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200", onclick: "closeModal()" },
+                    { text: "永久刪除", class: "bg-rose-600 hover:bg-rose-700 text-white", onclick: `deleteEmployee(${empId})` }
+                ]
+            );
+        }
+
+        function deleteEmployee(empId) {
+            const checkbox = document.getElementById('confirmDeleteEmployee');
+            if (!checkbox || !checkbox.checked) {
+                toast("請先勾選確認刪除", "warning");
+                return;
+            }
+
+            const index = state.employees.findIndex(x => x.id === empId);
+            if (index === -1) {
+                closeModal();
+                toast("找不到要刪除的員工", "error");
+                return;
+            }
+
+            const emp = state.employees[index];
+            state.employees.splice(index, 1);
+            state.attendanceRecords = state.attendanceRecords.filter(r => r.employeeId !== empId);
+            state.requests = state.requests.filter(r => r.empId !== empId);
+
+            if (!state.isManager && state.currentUser && state.currentUser.id === empId) {
+                state.currentUser = null;
+                state.currentPage = 'login';
+            }
+
+            saveState();
+            closeModal();
+            renderHeader();
+            renderApp();
+            toast(`員工「${emp.name}」已刪除`, "success");
+        }
+
+        function confirmClearAllEmployees() {
+            const count = state.employees.length;
+            showModal('一鍵清除員工資料', `
+                <div class="space-y-4 text-sm">
+                    <div class="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/30 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50">
+                        <div class="font-bold text-base mb-1">⚠️ 此操作無法復原</div>
+                        <div>目前共有 <b>${count}</b> 名員工。</div>
+                        <div class="mt-1">清除後將一併刪除所有員工資料、每月班表、出勤紀錄與申請資料。</div>
+                    </div>
+                    <label class="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer">
+                        <input id="confirmClearAllEmployees" type="checkbox" class="mt-1 w-4 h-4">
+                        <span class="font-semibold">我確認要永久清除全部員工資料及相關紀錄</span>
+                    </label>
+                </div>
+            `, [
+                { text: '取消', class: 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200', onclick: 'closeModal()' },
+                { text: '永久清除全部資料', class: 'bg-rose-600 text-white', onclick: 'clearAllEmployees()' }
+            ]);
+        }
+
+        function clearAllEmployees() {
+            const checkbox = document.getElementById('confirmClearAllEmployees');
+            if (!checkbox || !checkbox.checked) {
+                toast('請先勾選確認後才能清除全部員工資料', 'warning');
+                return;
+            }
+
+            state.employees = [];
+            state.attendanceRecords = [];
+            state.requests = [];
+            state.currentUser = null;
+            state.isManager = false;
+            state.currentPage = 'login';
+            localStorage.removeItem('sys_employees');
+            localStorage.setItem('sys_attendance', '[]');
+            localStorage.setItem('sys_requests', '[]');
+            localStorage.removeItem('sys_user');
+            localStorage.setItem('sys_isManager', 'false');
+            localStorage.setItem('sys_page', 'login');
+
+            closeModal();
+            renderHeader();
+            renderApp();
+            toast('已一鍵清除全部員工資料與相關紀錄', 'success');
+        }
+
+        function toggleEmployeeActive(empId) {
+            const emp = state.employees.find(x => x.id === empId);
+            emp.active = !emp.active;
+            saveState();
+            renderApp();
+            toast(`已將員工 ${emp.name} 設定為 ${emp.active ? '啟用 (在職)' : '停用'}`, "info");
+        }
+
+        function renderManagerRecords(container) {
+            container.innerHTML = `
+                <div class="space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 dark:text-white">全公司出勤歷史與匯出</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">快速查詢每月出勤明細與產出 Excel 報表</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <input id="exportStatsMonth" type="month" value="${new Date().toISOString().slice(0,7)}" class="px-3 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-sm font-semibold">
+                            <button onclick="exportExcelStats()" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-blue-500/20">
+                                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                                <span>匯出 Excel 統計表</span>
+                            </button>
+                            <button onclick="exportExcelAll()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/20">
+                                <i data-lucide="list" class="w-4 h-4"></i>
+                                <span>匯出出勤明細</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-700 text-slate-400 text-xs uppercase font-bold tracking-wider">
+                                        <th class="p-4">日期</th>
+                                        <th class="p-4">員工姓名</th>
+                                        <th class="p-4">部門</th>
+                                        <th class="p-4">上班時間</th>
+                                        <th class="p-4">下班時間</th>
+                                        <th class="p-4">狀態</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
+                                    ${state.attendanceRecords.map(r => `
+                                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                                            <td class="p-4 font-mono font-medium text-xs">${r.date}</td>
+                                            <td class="p-4 font-bold text-slate-800 dark:text-slate-200">${r.employeeName}</td>
+                                            <td class="p-4 text-xs text-slate-500">${r.dept}</td>
+                                            <td class="p-4 font-mono text-xs font-semibold">${r.inTime}</td>
+                                            <td class="p-4 font-mono text-xs font-semibold">${r.outTime}</td>
+                                            <td class="p-4">
+                                                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${getBadgeClass(r.status)}">${r.status}</span>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function exportCSV(filename, rows) {
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+            csvContent += "日期,姓名,部門,上班,下班,狀態\n";
+            rows.forEach(r => {
+                csvContent += `${r.date},${r.employeeName},${r.dept},${r.inTime},${r.outTime},${r.status}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            toast("已開始下載 CSV 差勤報表", "success");
+        }
+
+        function parseTimeToMinutes(time) {
+            if (!time || time === '--' || typeof time !== 'string' || !/^\d{1,2}:\d{2}$/.test(time)) return null;
+            const [h, m] = time.split(':').map(Number);
+            return h * 60 + m;
+        }
+
+        function hoursBetweenTimes(inTime, outTime) {
+            const a = parseTimeToMinutes(inTime), b = parseTimeToMinutes(outTime);
+            if (a === null || b === null) return 0;
+            let diff = b - a;
+            if (diff < 0) diff += 24 * 60;
+            return Number((diff / 60).toFixed(2));
+        }
+
+        function getMonthDays(year, month) {
+            return new Date(year, month, 0).getDate();
+        }
+
+        function exportExcelStats() {
+            if (typeof XLSX === 'undefined') {
+                toast('Excel 元件尚未載入，請確認網路連線後再試。', 'error');
+                return;
+            }
+
+            const monthInput = document.getElementById('exportStatsMonth');
+            const value = monthInput?.value || new Date().toISOString().slice(0, 7);
+            const [year, month] = value.split('-').map(Number);
+            if (!year || !month) {
+                toast('請先選擇要匯出的月份。', 'warning');
+                return;
+            }
+
+            const days = getMonthDays(year, month);
+            const monthPrefix = `${year}-${String(month).padStart(2, '0')}-`;
+            const records = state.attendanceRecords.filter(r => String(r.date || '').startsWith(monthPrefix));
+
+            const summary = [];
+            const daily = [];
+            const scheduleRows = [];
+
+            state.employees.forEach(emp => {
+                ensureMonthlySchedule(emp);
+                let scheduledTotal = 0;
+                let actualTotal = 0;
+                let overtimeTotal = 0;
+                let workdays = 0;
+                let lateDays = 0;
+                let leaveDays = 0;
+                const row = {
+                    '員工編號': emp.code || '',
+                    '員工姓名': emp.name || '',
+                    '部門': emp.dept || '',
+                    '職稱': emp.job || '',
+                    '排定工時': 0,
+                    '實際工時': 0,
+                    '加班時數': 0,
+                    '出勤天數': 0,
+                    '遲到天數': 0,
+                    '請假天數': 0
+                };
+
+                for (let d = 1; d <= days; d++) {
+                    const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    const dateObj = new Date(year, month - 1, d);
+                    const schedule = getEmployeeSchedule(emp, dateObj);
+                    const scheduledHours = hoursBetweenTimes(schedule.workStart, schedule.workEnd);
+                    const saved = emp.monthlySchedule?.[dateKey] || {};
+                    const shiftCode = saved.shiftCode || '';
+                    const rec = records.find(r => r.employeeId === emp.id && r.date === dateKey);
+                    const actualHours = rec ? hoursBetweenTimes(rec.inTime, rec.outTime) : 0;
+                    const overtime = rec && actualHours > 0
+                        ? Number(Math.max(0, Math.min(actualHours - scheduledHours, Number(schedule.overtimeHours) || 0)).toFixed(2))
+                        : 0;
+
+                    if (rec && rec.status === '請假') leaveDays++;
+                    if (rec && rec.inTime && rec.inTime !== '--' && rec.outTime && rec.outTime !== '--') workdays++;
+                    if (rec && rec.status === '遲到') lateDays++;
+                    if (rec && actualHours > 0) {
+                        actualTotal += actualHours;
+                        overtimeTotal += overtime;
+                    }
+                    if (shiftCode || (rec && actualHours > 0)) scheduledTotal += scheduledHours;
+
+                    row[`${d}日班別`] = shiftCode;
+                    row[`${d}日上班`] = rec?.inTime || '';
+                    row[`${d}日下班`] = rec?.outTime || '';
+                    row[`${d}日工時`] = actualHours || '';
+                    row[`${d}日加班`] = overtime || '';
+
+                    daily.push({
+                        '日期': dateKey,
+                        '員工編號': emp.code || '',
+                        '員工姓名': emp.name || '',
+                        '部門': emp.dept || '',
+                        '職稱': emp.job || '',
+                        '班別代碼': shiftCode,
+                        '班表上班': schedule.workStart,
+                        '班表下班': schedule.workEnd,
+                        '上班打卡': rec?.inTime || '',
+                        '下班打卡': rec?.outTime || '',
+                        '實際工時': actualHours || 0,
+                        '加班時數': overtime || 0,
+                        '狀態': rec?.status || '未打卡'
+                    });
+                }
+
+                row['排定工時'] = Number(scheduledTotal.toFixed(2));
+                row['實際工時'] = Number(actualTotal.toFixed(2));
+                row['加班時數'] = Number(overtimeTotal.toFixed(2));
+                row['出勤天數'] = workdays;
+                row['遲到天數'] = lateDays;
+                row['請假天數'] = leaveDays;
+                summary.push(row);
+
+                const scheduleRow = {
+                    '車別/部門': emp.dept || '',
+                    '職稱': emp.job || '',
+                    '姓名': emp.name || ''
+                };
+                for (let d = 1; d <= days; d++) {
+                    const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    const saved = emp.monthlySchedule?.[dateKey] || {};
+                    scheduleRow[String(d)] = saved.shiftCode || '';
+                }
+                scheduleRows.push(scheduleRow);
+            });
+
+            const wb = XLSX.utils.book_new();
+            const wsSummary = XLSX.utils.json_to_sheet(summary);
+            const wsDaily = XLSX.utils.json_to_sheet(daily);
+            const wsSchedule = XLSX.utils.json_to_sheet(scheduleRows);
+
+            wsSummary['!cols'] = [
+                { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 18 },
+                { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }
+            ];
+            wsDaily['!cols'] = [
+                { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 18 },
+                { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 },
+                { wch: 10 }, { wch: 10 }, { wch: 10 }
+            ];
+
+            XLSX.utils.book_append_sheet(wb, wsSummary, '月統計');
+            XLSX.utils.book_append_sheet(wb, wsSchedule, '每日班別');
+            XLSX.utils.book_append_sheet(wb, wsDaily, '每日明細');
+
+            const filename = `K專案_${year}年${String(month).padStart(2, '0')}月_出勤統計表.xlsx`;
+            XLSX.writeFile(wb, filename);
+            toast(`已匯出 ${year}年${month}月 Excel 統計表！`, 'success');
+        }
+
+        function exportExcelAll() {
+            const data = state.attendanceRecords.map(r => ({
+                "出勤日期": r.date,
+                "員工姓名": r.employeeName,
+                "所屬部門": r.dept,
+                "上班打卡時間": r.inTime,
+                "下班打卡時間": r.outTime,
+                "出勤判定": r.status,
+                "打卡地點/GPS": r.location
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "差勤歷史報表");
+            XLSX.writeFile(wb, "全公司差勤明細表_2026.xlsx");
+            toast("Excel (.xlsx) 檔案下載完成！", "success");
+        }
+
+        function renderManagerRequests(container) {
+            container.innerHTML = `
+                <div class="space-y-6">
+                    <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700">
+                        <h2 class="text-xl font-bold text-slate-900 dark:text-white">員工單據簽核審核</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">審核同仁補打卡與請假申請單</p>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+                        <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                            ${state.requests.length === 0 ? `
+                                <div class="p-8 text-center text-slate-400">目前尚無待處理的簽核單</div>
+                            ` : state.requests.map(r => `
+                                <div class="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
+                                    <div class="space-y-1">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold text-slate-900 dark:text-white text-base">${r.name}</span>
+                                            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${r.type === '補打卡' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800'}">${r.type}</span>
+                                            <span class="text-xs text-slate-400 font-mono">${r.date}</span>
+                                        </div>
+                                        <p class="text-xs text-slate-600 dark:text-slate-300">申請原因：${r.reason}</p>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        ${r.status === '待審核' ? `
+                                            <button onclick="approveRequest('${r.id}', '已核准')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-md">
+                                                核准
+                                            </button>
+                                            <button onclick="approveRequest('${r.id}', '已駁回')" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition shadow-md">
+                                                駁回
+                                            </button>
+                                        ` : `
+                                            <span class="px-3 py-1 rounded-full text-xs font-bold ${r.status === '已核准' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                                                ${r.status}
+                                            </span>
+                                        `}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function approveRequest(reqId, newStatus) {
+            const req = state.requests.find(x => x.id === reqId);
+            if (req) {
+                req.status = newStatus;
+                saveState();
+                renderApp();
+                toast(`已將 ${req.name} 的申請單設定為：${newStatus}`, newStatus === '已核准' ? 'success' : 'warning');
+            }
+        }
+
+        function openManagerPasswordModal() {
+            showModal(
+                "修改主管登入密碼",
+                `
+                <form id="managerPasswordForm" class="space-y-4" onsubmit="event.preventDefault(); saveManagerPassword();">
+                    <div class="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-xs">
+                        <i data-lucide="shield-check" class="w-4 h-4 inline mr-1"></i>
+                        修改後請使用新密碼重新登入主管帳號。
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">目前密碼</label>
+                        <input id="managerOldPassword" type="password" autocomplete="current-password" required class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900" placeholder="請輸入目前主管密碼">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">新密碼</label>
+                        <input id="managerNewPassword" type="password" autocomplete="new-password" required minlength="4" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900" placeholder="至少 4 個字元">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">確認新密碼</label>
+                        <input id="managerConfirmPassword" type="password" autocomplete="new-password" required minlength="4" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900" placeholder="再次輸入新密碼">
+                    </div>
+                </form>
+                `,
+                [
+                    { text: "取消", class: "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200", onclick: "closeModal()" },
+                    { text: "儲存新密碼", class: "bg-blue-600 text-white", onclick: "saveManagerPassword()" }
+                ]
+            );
+        }
+
+        function saveManagerPassword() {
+            const oldPassword = document.getElementById("managerOldPassword")?.value || "";
+            const newPassword = document.getElementById("managerNewPassword")?.value || "";
+            const confirmPassword = document.getElementById("managerConfirmPassword")?.value || "";
+
+            if (oldPassword !== MANAGER_ACCOUNT.password) {
+                toast("目前密碼輸入錯誤", "error");
+                return;
+            }
+            if (newPassword.length < 4) {
+                toast("新密碼至少需要 4 個字元", "warning");
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                toast("兩次輸入的新密碼不一致", "warning");
+                return;
+            }
+            if (newPassword === oldPassword) {
+                toast("新密碼不能與目前密碼相同", "warning");
+                return;
+            }
+
+            MANAGER_ACCOUNT.password = newPassword;
+            saveManagerAccount();
+            closeModal();
+            toast("主管登入密碼已成功修改", "success");
+        }
+
+        function showModal(title, bodyHTML, buttons = []) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalBody').innerHTML = bodyHTML;
+
+            const footer = document.getElementById('modalFooter');
+            footer.innerHTML = buttons.map(b => `
+                <button onclick="${b.onclick}" class="px-4 py-2 rounded-xl text-xs font-bold transition ${b.class}">
+                    ${b.text}
+                </button>
+            `).join('');
+
+            const backdrop = document.getElementById('modalBackdrop');
+            const modal = document.getElementById('modalContainer');
+
+            backdrop.classList.remove('hidden');
+            setTimeout(() => {
+                backdrop.classList.remove('opacity-0');
+                modal.classList.remove('scale-95');
+                modal.classList.add('scale-100');
+            }, 10);
+            lucide.createIcons();
+        }
+
+        function closeModal() {
+            const backdrop = document.getElementById('modalBackdrop');
+            const modal = document.getElementById('modalContainer');
+
+            backdrop.classList.add('opacity-0');
+            modal.classList.remove('scale-100');
+            modal.classList.add('scale-95');
+
+            setTimeout(() => {
+                backdrop.classList.add('hidden');
+            }, 200);
+        }
+    </script>
+</body>
+</html>
